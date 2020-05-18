@@ -7,7 +7,6 @@ use glow::HasContext;
 use glyph_brush::rusttype::{point, Rect};
 
 pub struct Pipeline {
-    sampler: <glow::Context as HasContext>::Sampler,
     program: <glow::Context as HasContext>::Program,
     vertex_array: <glow::Context as HasContext>::VertexArray,
     instances: <glow::Context as HasContext>::Buffer,
@@ -23,9 +22,6 @@ impl Pipeline {
         cache_width: u32,
         cache_height: u32,
     ) -> Pipeline {
-        let sampler =
-            unsafe { gl.create_sampler().expect("Create glyph sampler") };
-
         let cache = unsafe { Cache::new(gl, cache_width, cache_height) };
 
         let program = unsafe {
@@ -45,7 +41,6 @@ impl Pipeline {
             unsafe { create_instance_buffer(gl, Instance::INITIAL_AMOUNT) };
 
         Pipeline {
-            sampler,
             program,
             cache,
             vertex_array,
