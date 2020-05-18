@@ -35,7 +35,13 @@ fn main() -> Result<(), String> {
     context.window().request_redraw();
 
     unsafe {
+        // Enable auto-conversion from/to sRGB
         gl.enable(glow::FRAMEBUFFER_SRGB);
+
+        // Enable alpha blending
+        gl.enable(glow::BLEND);
+        gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+
         gl.clear_color(0.4, 0.4, 0.4, 1.0);
     }
 
@@ -51,13 +57,22 @@ fn main() -> Result<(), String> {
             } => {
                 context.resize(new_size);
 
+                unsafe {
+                    gl.viewport(
+                        0,
+                        0,
+                        new_size.width as _,
+                        new_size.height as _,
+                    );
+                }
+
                 size = new_size;
             }
             glutin::event::Event::RedrawRequested { .. } => {
                 unsafe { gl.clear(glow::COLOR_BUFFER_BIT) }
 
                 glyph_brush.queue(Section {
-                    text: "Hello wgpu_glyph!",
+                    text: "Hello glow_glyph!",
                     screen_position: (30.0, 30.0),
                     color: [0.0, 0.0, 0.0, 1.0],
                     scale: Scale { x: 40.0, y: 40.0 },
@@ -66,7 +81,7 @@ fn main() -> Result<(), String> {
                 });
 
                 glyph_brush.queue(Section {
-                    text: "Hello wgpu_glyph!",
+                    text: "Hello glow_glyph!",
                     screen_position: (30.0, 90.0),
                     color: [1.0, 1.0, 1.0, 1.0],
                     scale: Scale { x: 40.0, y: 40.0 },

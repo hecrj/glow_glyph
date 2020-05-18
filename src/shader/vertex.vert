@@ -2,11 +2,11 @@
 
 layout(location = 0) uniform mat4 transform;
 
-in vec3 left_top;
-in vec2 right_bottom;
-in vec2 tex_left_top;
-in vec2 tex_right_bottom;
-in vec4 color;
+layout(location = 0) in vec3 left_top;
+layout(location = 1) in vec2 right_bottom;
+layout(location = 2) in vec2 tex_left_top;
+layout(location = 3) in vec2 tex_right_bottom;
+layout(location = 4) in vec4 color;
 
 out vec2 f_tex_pos;
 out vec4 f_color;

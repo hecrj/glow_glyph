@@ -9,6 +9,7 @@ use glyph_brush::rusttype::{point, Rect};
 pub struct Pipeline {
     sampler: <glow::Context as HasContext>::Sampler,
     program: <glow::Context as HasContext>::Program,
+    vertex_array: <glow::Context as HasContext>::VertexArray,
     instances: <glow::Context as HasContext>::Buffer,
     cache: Cache,
     current_instances: usize,
@@ -25,7 +26,7 @@ impl Pipeline {
         let sampler =
             unsafe { gl.create_sampler().expect("Create glyph sampler") };
 
-        let cache = Cache::new(gl, cache_width, cache_height);
+        let cache = unsafe { Cache::new(gl, cache_width, cache_height) };
 
         let program = unsafe {
             create_program(
@@ -40,17 +41,18 @@ impl Pipeline {
             )
         };
 
-        let instances =
-            unsafe { gl.create_buffer().expect("Create instance buffer") };
+        let (vertex_array, instances) =
+            unsafe { create_instance_buffer(gl, Instance::INITIAL_AMOUNT) };
 
         Pipeline {
             sampler,
             program,
             cache,
+            vertex_array,
             instances,
             current_instances: 0,
             supported_instances: Instance::INITIAL_AMOUNT,
-            current_transform: [0.0; 16],
+            current_transform: IDENTITY_MATRIX,
         }
     }
 
@@ -60,6 +62,36 @@ impl Pipeline {
         transform: [f32; 16],
         region: Option<Region>,
     ) {
+        unsafe {
+            gl.use_program(Some(self.program));
+        }
+
+        if self.current_transform != transform {
+            unsafe {
+                gl.uniform_matrix_4_f32_slice(Some(0), false, &transform);
+            }
+
+            self.current_transform = transform;
+        }
+
+        unsafe {
+            gl.active_texture(glow::TEXTURE0);
+            gl.bind_texture(glow::TEXTURE_2D, Some(self.cache.texture));
+            gl.uniform_1_i32(Some(1), 0);
+
+            gl.bind_vertex_array(Some(self.vertex_array));
+
+            gl.draw_arrays_instanced(
+                glow::TRIANGLE_STRIP,
+                0,
+                4,
+                self.current_instances as i32,
+            );
+
+            gl.bind_vertex_array(None);
+            gl.bind_texture(glow::TEXTURE_2D, None);
+            gl.use_program(None);
+        }
     }
 
     pub fn update_cache(
@@ -69,7 +101,9 @@ impl Pipeline {
         size: [u16; 2],
         data: &[u8],
     ) {
-        self.cache.update(gl, offset, size, data);
+        unsafe {
+            self.cache.update(gl, offset, size, data);
+        }
     }
 
     pub fn increase_cache_size(
@@ -78,7 +112,11 @@ impl Pipeline {
         width: u32,
         height: u32,
     ) {
-        self.cache = Cache::new(gl, width, height);
+        unsafe {
+            self.cache.destroy(gl);
+
+            self.cache = Cache::new(gl, width, height);
+        }
     }
 
     pub fn upload(&mut self, gl: &glow::Context, instances: &[Instance]) {
@@ -88,12 +126,28 @@ impl Pipeline {
         }
 
         if instances.len() > self.supported_instances {
-            // TODO
+            unsafe {
+                gl.delete_buffer(self.instances);
+                gl.delete_vertex_array(self.vertex_array);
+            }
 
+            let (new_vertex_array, new_instances) =
+                unsafe { create_instance_buffer(gl, instances.len()) };
+
+            self.vertex_array = new_vertex_array;
+            self.instances = new_instances;
             self.supported_instances = instances.len();
         }
 
-        // TODO
+        unsafe {
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.instances));
+            gl.buffer_sub_data_u8_slice(
+                glow::ARRAY_BUFFER,
+                0,
+                bytemuck::cast_slice(instances),
+            );
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
+        }
 
         self.current_instances = instances.len();
     }
@@ -218,4 +272,64 @@ unsafe fn create_program(
     }
 
     program
+}
+
+unsafe fn create_instance_buffer(
+    gl: &glow::Context,
+    size: usize,
+) -> (
+    <glow::Context as HasContext>::VertexArray,
+    <glow::Context as HasContext>::Buffer,
+) {
+    let vertex_array = gl.create_vertex_array().expect("Create vertex array");
+    let buffer = gl.create_buffer().expect("Create instance buffer");
+
+    gl.bind_vertex_array(Some(vertex_array));
+    gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
+    gl.buffer_data_size(
+        glow::ARRAY_BUFFER,
+        (size * std::mem::size_of::<Instance>()) as i32,
+        glow::DYNAMIC_DRAW,
+    );
+
+    let stride = std::mem::size_of::<Instance>() as i32;
+
+    gl.enable_vertex_attrib_array(0);
+    gl.vertex_attrib_pointer_f32(0, 3, glow::FLOAT, false, stride, 0);
+    gl.vertex_attrib_divisor(0, 1);
+
+    gl.enable_vertex_attrib_array(1);
+    gl.vertex_attrib_pointer_f32(1, 2, glow::FLOAT, false, stride, 4 * 3);
+    gl.vertex_attrib_divisor(1, 1);
+
+    gl.enable_vertex_attrib_array(2);
+    gl.vertex_attrib_pointer_f32(2, 2, glow::FLOAT, false, stride, 4 * (3 + 2));
+    gl.vertex_attrib_divisor(2, 1);
+
+    gl.enable_vertex_attrib_array(3);
+    gl.vertex_attrib_pointer_f32(
+        3,
+        2,
+        glow::FLOAT,
+        false,
+        stride,
+        4 * (3 + 2 + 2),
+    );
+    gl.vertex_attrib_divisor(3, 1);
+
+    gl.enable_vertex_attrib_array(4);
+    gl.vertex_attrib_pointer_f32(
+        4,
+        4,
+        glow::FLOAT,
+        false,
+        stride,
+        4 * (3 + 2 + 2 + 2),
+    );
+    gl.vertex_attrib_divisor(4, 1);
+
+    gl.bind_vertex_array(None);
+    gl.bind_buffer(glow::ARRAY_BUFFER, None);
+
+    (vertex_array, buffer)
 }
