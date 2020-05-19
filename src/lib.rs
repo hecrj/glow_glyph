@@ -14,9 +14,10 @@ use pipeline::{Instance, Pipeline};
 pub use builder::GlyphBrushBuilder;
 pub use glyph_brush::{
     rusttype::{self, Font, Point, PositionedGlyph, Rect, Scale, SharedBytes},
-    BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, GlyphPositioner, HorizontalAlign, Layout,
-    LineBreak, LineBreaker, OwnedSectionText, OwnedVariedSection, PositionedGlyphIter, Section,
-    SectionGeometry, SectionText, VariedSection, VerticalAlign,
+    BuiltInLineBreaker, FontId, FontMap, GlyphCruncher, GlyphPositioner,
+    HorizontalAlign, Layout, LineBreak, LineBreaker, OwnedSectionText,
+    OwnedVariedSection, PositionedGlyphIter, Section, SectionGeometry,
+    SectionText, VariedSection, VerticalAlign,
 };
 
 use core::hash::BuildHasher;
@@ -58,8 +59,11 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     ///
     /// Benefits from caching, see [caching behaviour](#caching-behaviour).
     #[inline]
-    pub fn queue_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
-    where
+    pub fn queue_custom_layout<'a, S, G>(
+        &mut self,
+        section: S,
+        custom_layout: &G,
+    ) where
         G: GlyphPositioner,
         S: Into<Cow<'a, VariedSection<'a>>>,
     {
@@ -85,8 +89,11 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// Should not be necessary unless using multiple draws per frame with
     /// distinct transforms, see [caching behaviour](#caching-behaviour).
     #[inline]
-    pub fn keep_cached_custom_layout<'a, S, G>(&mut self, section: S, custom_layout: &G)
-    where
+    pub fn keep_cached_custom_layout<'a, S, G>(
+        &mut self,
+        section: S,
+        custom_layout: &G,
+    ) where
         S: Into<Cow<'a, VariedSection<'a>>>,
         G: GlyphPositioner,
     {
@@ -130,10 +137,13 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                     // This is currently not possible I think. Ask!
                     let max_image_dimension = 2048;
 
-                    let (new_width, new_height) = if (suggested.0 > max_image_dimension
+                    let (new_width, new_height) = if (suggested.0
+                        > max_image_dimension
                         || suggested.1 > max_image_dimension)
-                        && (self.glyph_brush.texture_dimensions().0 < max_image_dimension
-                            || self.glyph_brush.texture_dimensions().1 < max_image_dimension)
+                        && (self.glyph_brush.texture_dimensions().0
+                            < max_image_dimension
+                            || self.glyph_brush.texture_dimensions().1
+                                < max_image_dimension)
                     {
                         (max_image_dimension, max_image_dimension)
                     } else {
@@ -150,7 +160,8 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
                         );
                     }
 
-                    pipeline.increase_cache_size(context, new_width, new_height);
+                    pipeline
+                        .increase_cache_size(context, new_width, new_height);
                     self.glyph_brush.resize_texture(new_width, new_height);
                 }
             }
@@ -175,7 +186,10 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// Adds an additional font to the one(s) initially added on build.
     ///
     /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
-    pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(&mut self, font_data: B) -> FontId {
+    pub fn add_font_bytes<'a: 'font, B: Into<SharedBytes<'a>>>(
+        &mut self,
+        font_data: B,
+    ) -> FontId {
         self.glyph_brush.add_font_bytes(font_data)
     }
 
@@ -188,7 +202,10 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
 }
 
 impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
-    fn new(gl: &glow::Context, raw_builder: glyph_brush::GlyphBrushBuilder<'font, H>) -> Self {
+    fn new(
+        gl: &glow::Context,
+        raw_builder: glyph_brush::GlyphBrushBuilder<'font, H>,
+    ) -> Self {
         let glyph_brush = raw_builder.build();
         let (cache_width, cache_height) = glyph_brush.texture_dimensions();
         GlyphBrush {

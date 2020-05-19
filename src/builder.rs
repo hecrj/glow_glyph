@@ -11,7 +11,9 @@ pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
     inner: glyph_brush::GlyphBrushBuilder<'a, H>,
 }
 
-impl<'a, H> From<glyph_brush::GlyphBrushBuilder<'a, H>> for GlyphBrushBuilder<'a, H> {
+impl<'a, H> From<glyph_brush::GlyphBrushBuilder<'a, H>>
+    for GlyphBrushBuilder<'a, H>
+{
     fn from(inner: glyph_brush::GlyphBrushBuilder<'a, H>) -> Self {
         GlyphBrushBuilder { inner }
     }
@@ -20,7 +22,9 @@ impl<'a> GlyphBrushBuilder<'a> {
     /// Specifies the default font data used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
     #[inline]
-    pub fn using_font_bytes<B: Into<SharedBytes<'a>>>(font_0_data: B) -> Result<Self, Error> {
+    pub fn using_font_bytes<B: Into<SharedBytes<'a>>>(
+        font_0_data: B,
+    ) -> Result<Self, Error> {
         let font = Font::from_bytes(font_0_data)?;
 
         Ok(Self::using_font(font))
@@ -65,7 +69,10 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     /// internal use.
     ///
     /// Defaults to [seahash](https://docs.rs/seahash).
-    pub fn section_hasher<T: BuildHasher>(self, section_hasher: T) -> GlyphBrushBuilder<'a, T> {
+    pub fn section_hasher<T: BuildHasher>(
+        self,
+        section_hasher: T,
+    ) -> GlyphBrushBuilder<'a, T> {
         GlyphBrushBuilder {
             inner: self.inner.section_hasher(section_hasher),
         }
