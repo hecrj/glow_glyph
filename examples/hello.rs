@@ -11,7 +11,7 @@ fn main() -> Result<(), String> {
         glutin::window::WindowBuilder::new().with_resizable(false);
 
     let context = glutin::ContextBuilder::new()
-        .with_srgb(true)
+        .with_vsync(true)
         .build_windowed(window_builder, &event_loop)
         .expect("Open window");
 

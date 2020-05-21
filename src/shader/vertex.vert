@@ -1,6 +1,6 @@
-#version 450
+#version 330
 
-layout(location = 0) uniform mat4 transform;
+uniform mat4 transform;
 
 layout(location = 0) in vec3 left_top;
 layout(location = 1) in vec2 right_bottom;

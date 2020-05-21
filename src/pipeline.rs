@@ -10,6 +10,8 @@ pub struct Pipeline {
     program: <glow::Context as HasContext>::Program,
     vertex_array: <glow::Context as HasContext>::VertexArray,
     instances: <glow::Context as HasContext>::Buffer,
+    transform: <glow::Context as HasContext>::UniformLocation,
+    sampler: <glow::Context as HasContext>::UniformLocation,
     cache: Cache,
     current_instances: usize,
     supported_instances: usize,
@@ -40,11 +42,35 @@ impl Pipeline {
         let (vertex_array, instances) =
             unsafe { create_instance_buffer(gl, Instance::INITIAL_AMOUNT) };
 
+        let transform = unsafe {
+            gl.get_uniform_location(program, "transform")
+                .expect("Get transform location")
+        };
+
+        let sampler = unsafe {
+            gl.get_uniform_location(program, "font_sampler")
+                .expect("Get sampler location")
+        };
+
+        unsafe {
+            gl.use_program(Some(program));
+
+            gl.uniform_matrix_4_f32_slice(
+                Some(&transform),
+                false,
+                &IDENTITY_MATRIX,
+            );
+
+            gl.use_program(None);
+        }
+
         Pipeline {
             program,
             cache,
             vertex_array,
             instances,
+            transform,
+            sampler,
             current_instances: 0,
             supported_instances: Instance::INITIAL_AMOUNT,
             current_transform: IDENTITY_MATRIX,
@@ -63,7 +89,11 @@ impl Pipeline {
 
         if self.current_transform != transform {
             unsafe {
-                gl.uniform_matrix_4_f32_slice(Some(&0), false, &transform);
+                gl.uniform_matrix_4_f32_slice(
+                    Some(&self.transform),
+                    false,
+                    &transform,
+                );
             }
 
             self.current_transform = transform;
@@ -82,7 +112,7 @@ impl Pipeline {
 
             gl.active_texture(glow::TEXTURE0);
             gl.bind_texture(glow::TEXTURE_2D, Some(self.cache.texture));
-            gl.uniform_1_i32(Some(&1), 0);
+            gl.uniform_1_i32(Some(&self.sampler), 0);
 
             gl.bind_vertex_array(Some(self.vertex_array));
 

@@ -1,6 +1,6 @@
-#version 450
+#version 330
 
-layout(location = 1) uniform sampler2D font_sampler;
+uniform sampler2D font_sampler;
 
 in vec2 f_tex_pos;
 in vec4 f_color;
