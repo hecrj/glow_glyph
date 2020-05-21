@@ -5,10 +5,13 @@ authors = ["Héctor Ramón Jiménez <hector0193@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-glow = "0.4"
 glyph_brush = "0.6"
 log = "0.4"
 bytemuck = "1.2"
+
+[dependencies.glow]
+git = "https://github.com/grovesNL/glow"
+rev = "722a850e972a69c3012fcb3687758eacbdac2823"
 
 [dev-dependencies]
 glutin = "0.24"
