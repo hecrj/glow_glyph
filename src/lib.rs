@@ -1,6 +1,6 @@
-//! A fast text renderer for [`wgpu`]. Powered by [`glyph_brush`].
+//! A fast text renderer for [`glow`]. Powered by [`glyph_brush`].
 //!
-//! [`wgpu`]: https://github.com/gfx-rs/wgpu
+//! [`glow`]: https://github.com/grovesNL/glow
 //! [`glyph_brush`]: https://github.com/alexheretic/glyph-brush/tree/master/glyph-brush
 #![deny(unused_results)]
 mod builder;
@@ -133,8 +133,7 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
             match brush_action {
                 Ok(_) => break,
                 Err(BrushError::TextureTooSmall { suggested }) => {
-                    // TODO: Obtain max texture dimensions using `wgpu`
-                    // This is currently not possible I think. Ask!
+                    // TODO: Obtain max texture dimensions
                     let max_image_dimension = 2048;
 
                     let (new_width, new_height) = if (suggested.0
@@ -217,8 +216,6 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// Draws all queued sections onto a render target.
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
     ///
-    /// It __does not__ submit the encoder command buffer to the device queue.
-    ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
     /// # Panics
@@ -241,8 +238,6 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// transform (e.g. a projection).
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
     ///
-    /// It __does not__ submit the encoder command buffer to the device queue.
-    ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///
     /// # Panics
@@ -263,8 +258,6 @@ impl<'font, H: BuildHasher> GlyphBrush<'font, H> {
     /// Draws all queued sections onto a render target, applying a position
     /// transform (e.g. a projection) and a scissoring region.
     /// See [`queue`](struct.GlyphBrush.html#method.queue).
-    ///
-    /// It __does not__ submit the encoder command buffer to the device queue.
     ///
     /// Trims the cache, see [caching behaviour](#caching-behaviour).
     ///

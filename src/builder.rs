@@ -78,8 +78,7 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
         }
     }
 
-    /// Builds a `GlyphBrush` using the given `wgpu::Device` that can render
-    /// text for texture views with the given `render_format`.
+    /// Builds a `GlyphBrush` in the given `glow::Context`.
     pub fn build(self, gl: &glow::Context) -> GlyphBrush<'a, H> {
         GlyphBrush::<H>::new(gl, self.inner)
     }
