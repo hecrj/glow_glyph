@@ -3,6 +3,12 @@ name = "glow_glyph"
 version = "0.1.0"
 authors = ["Héctor Ramón Jiménez <hector0193@gmail.com>"]
 edition = "2018"
+description = "A fast text renderer for glow, powered by glyph_brush"
+license = "MIT"
+keywords = ["font", "ttf", "truetype", "glow", "text"]
+repository = "https://github.com/hecrj/glow_glyph"
+documentation = "https://docs.rs/glow_glyph"
+readme = "README.md"
 
 [dependencies]
 glow = "0.4"
