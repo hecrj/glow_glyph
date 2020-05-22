@@ -56,7 +56,7 @@ impl Pipeline {
             gl.use_program(Some(program));
 
             gl.uniform_matrix_4_f32_slice(
-                Some(&transform),
+                Some(transform),
                 false,
                 &IDENTITY_MATRIX,
             );
@@ -90,7 +90,7 @@ impl Pipeline {
         if self.current_transform != transform {
             unsafe {
                 gl.uniform_matrix_4_f32_slice(
-                    Some(&self.transform),
+                    Some(self.transform),
                     false,
                     &transform,
                 );
@@ -112,7 +112,7 @@ impl Pipeline {
 
             gl.active_texture(glow::TEXTURE0);
             gl.bind_texture(glow::TEXTURE_2D, Some(self.cache.texture));
-            gl.uniform_1_i32(Some(&self.sampler), 0);
+            gl.uniform_1_i32(Some(self.sampler), 0);
 
             gl.bind_vertex_array(Some(self.vertex_array));
 
