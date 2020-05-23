@@ -11,7 +11,6 @@ pub struct Pipeline {
     vertex_array: <glow::Context as HasContext>::VertexArray,
     instances: <glow::Context as HasContext>::Buffer,
     transform: <glow::Context as HasContext>::UniformLocation,
-    sampler: <glow::Context as HasContext>::UniformLocation,
     cache: Cache,
     current_instances: usize,
     supported_instances: usize,
@@ -55,6 +54,8 @@ impl Pipeline {
         unsafe {
             gl.use_program(Some(program));
 
+            gl.uniform_1_i32(Some(sampler), 0);
+
             gl.uniform_matrix_4_f32_slice(
                 Some(transform),
                 false,
@@ -70,7 +71,6 @@ impl Pipeline {
             vertex_array,
             instances,
             transform,
-            sampler,
             current_instances: 0,
             supported_instances: Instance::INITIAL_AMOUNT,
             current_transform: IDENTITY_MATRIX,
@@ -112,7 +112,6 @@ impl Pipeline {
 
             gl.active_texture(glow::TEXTURE0);
             gl.bind_texture(glow::TEXTURE_2D, Some(self.cache.texture));
-            gl.uniform_1_i32(Some(self.sampler), 0);
 
             gl.bind_vertex_array(Some(self.vertex_array));
 
