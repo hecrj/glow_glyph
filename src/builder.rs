@@ -1,66 +1,56 @@
 use core::hash::BuildHasher;
 
+use glyph_brush::ab_glyph::Font;
 use glyph_brush::delegate_glyph_brush_builder_fns;
-use glyph_brush::{rusttype, DefaultSectionHasher};
-use rusttype::{Error, Font, SharedBytes};
+use glyph_brush::DefaultSectionHasher;
 
 use super::GlyphBrush;
 
 /// Builder for a [`GlyphBrush`](struct.GlyphBrush.html).
-pub struct GlyphBrushBuilder<'a, H = DefaultSectionHasher> {
-    inner: glyph_brush::GlyphBrushBuilder<'a, H>,
+pub struct GlyphBrushBuilder<F, H = DefaultSectionHasher> {
+    inner: glyph_brush::GlyphBrushBuilder<F, H>,
 }
 
-impl<'a, H> From<glyph_brush::GlyphBrushBuilder<'a, H>>
-    for GlyphBrushBuilder<'a, H>
+impl<F, H> From<glyph_brush::GlyphBrushBuilder<F, H>>
+    for GlyphBrushBuilder<F, H>
 {
-    fn from(inner: glyph_brush::GlyphBrushBuilder<'a, H>) -> Self {
+    fn from(inner: glyph_brush::GlyphBrushBuilder<F, H>) -> Self {
         GlyphBrushBuilder { inner }
     }
 }
-impl<'a> GlyphBrushBuilder<'a> {
-    /// Specifies the default font data used to render glyphs.
-    /// Referenced with `FontId(0)`, which is default.
-    #[inline]
-    pub fn using_font_bytes<B: Into<SharedBytes<'a>>>(
-        font_0_data: B,
-    ) -> Result<Self, Error> {
-        let font = Font::from_bytes(font_0_data)?;
 
-        Ok(Self::using_font(font))
-    }
-
-    #[inline]
-    pub fn using_fonts_bytes<B, V>(font_data: V) -> Result<Self, Error>
-    where
-        B: Into<SharedBytes<'a>>,
-        V: Into<Vec<B>>,
-    {
-        let fonts = font_data
-            .into()
-            .into_iter()
-            .map(Font::from_bytes)
-            .collect::<Result<Vec<Font>, Error>>()?;
-
-        Ok(Self::using_fonts(fonts))
-    }
-
+impl GlyphBrushBuilder<()> {
     /// Specifies the default font used to render glyphs.
     /// Referenced with `FontId(0)`, which is default.
     #[inline]
-    pub fn using_font(font_0: Font<'a>) -> Self {
-        Self::using_fonts(vec![font_0])
+    pub fn using_font<F: Font>(font: F) -> GlyphBrushBuilder<F> {
+        Self::using_fonts(vec![font])
     }
 
-    pub fn using_fonts<V: Into<Vec<Font<'a>>>>(fonts: V) -> Self {
+    pub fn using_fonts<F: Font>(fonts: Vec<F>) -> GlyphBrushBuilder<F> {
         GlyphBrushBuilder {
             inner: glyph_brush::GlyphBrushBuilder::using_fonts(fonts),
         }
     }
 }
 
-impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
+impl<F: Font, H: BuildHasher> GlyphBrushBuilder<F, H> {
     delegate_glyph_brush_builder_fns!(inner);
+
+    /// When multiple CPU cores are available spread rasterization work across
+    /// all cores.
+    ///
+    /// Significantly reduces worst case latency in multicore environments.
+    ///
+    /// # Platform-specific behaviour
+    ///
+    /// This option has no effect on wasm32.
+    pub fn draw_cache_multithread(mut self, multithread: bool) -> Self {
+        self.inner.draw_cache_builder =
+            self.inner.draw_cache_builder.multithread(multithread);
+
+        self
+    }
 
     /// Sets the section hasher. `GlyphBrush` cannot handle absolute section
     /// hash collisions so use a good hash algorithm.
@@ -72,14 +62,14 @@ impl<'a, H: BuildHasher> GlyphBrushBuilder<'a, H> {
     pub fn section_hasher<T: BuildHasher>(
         self,
         section_hasher: T,
-    ) -> GlyphBrushBuilder<'a, T> {
+    ) -> GlyphBrushBuilder<F, T> {
         GlyphBrushBuilder {
             inner: self.inner.section_hasher(section_hasher),
         }
     }
 
     /// Builds a `GlyphBrush` in the given `glow::Context`.
-    pub fn build(self, gl: &glow::Context) -> GlyphBrush<'a, H> {
-        GlyphBrush::<H>::new(gl, self.inner)
+    pub fn build(self, gl: &glow::Context) -> GlyphBrush<F, H> {
+        GlyphBrush::<F, H>::new(gl, self.inner)
     }
 }
