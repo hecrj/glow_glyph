@@ -1,10 +1,10 @@
 mod cache;
 
+use crate::ab_glyph::{point, Rect};
 use crate::Region;
 use cache::Cache;
 
 use glow::HasContext;
-use glyph_brush::rusttype::{point, Rect};
 
 pub struct Pipeline {
     program: <glow::Context as HasContext>::Program,
@@ -212,19 +212,15 @@ unsafe impl bytemuck::Pod for Instance {}
 
 impl Instance {
     const INITIAL_AMOUNT: usize = 50_000;
-}
 
-impl From<glyph_brush::GlyphVertex> for Instance {
-    #[inline]
-    fn from(vertex: glyph_brush::GlyphVertex) -> Instance {
-        let glyph_brush::GlyphVertex {
+    pub fn from_vertex(
+        glyph_brush::GlyphVertex {
             mut tex_coords,
             pixel_coords,
             bounds,
-            color,
-            z,
-        } = vertex;
-
+            extra,
+        }: glyph_brush::GlyphVertex,
+    ) -> Instance {
         let gl_bounds = bounds;
 
         let mut gl_rect = Rect {
@@ -262,11 +258,11 @@ impl From<glyph_brush::GlyphVertex> for Instance {
         }
 
         Instance {
-            left_top: [gl_rect.min.x, gl_rect.max.y, z],
+            left_top: [gl_rect.min.x, gl_rect.max.y, extra.z],
             right_bottom: [gl_rect.max.x, gl_rect.min.y],
             tex_left_top: [tex_coords.min.x, tex_coords.max.y],
             tex_right_bottom: [tex_coords.max.x, tex_coords.min.y],
-            color,
+            color: extra.color,
         }
     }
 }

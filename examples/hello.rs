@@ -1,7 +1,8 @@
 use glow::HasContext;
-use glow_glyph::{GlyphBrushBuilder, Scale, Section};
+use glow_glyph::{ab_glyph, GlyphBrushBuilder, Section, Text};
+use std::error::Error;
 
-fn main() -> Result<(), String> {
+fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     // Open window and create a surface
@@ -26,10 +27,11 @@ fn main() -> Result<(), String> {
     });
 
     // Prepare glyph_brush
-    let inconsolata: &[u8] = include_bytes!("Inconsolata-Regular.ttf");
-    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(inconsolata)
-        .expect("Load fonts")
-        .build(&gl);
+    let inconsolata = ab_glyph::FontArc::try_from_slice(include_bytes!(
+        "Inconsolata-Regular.ttf"
+    ))?;
+
+    let mut glyph_brush = GlyphBrushBuilder::using_font(inconsolata).build(&gl);
 
     // Render loop
     context.window().request_redraw();
@@ -72,20 +74,22 @@ fn main() -> Result<(), String> {
                 unsafe { gl.clear(glow::COLOR_BUFFER_BIT) }
 
                 glyph_brush.queue(Section {
-                    text: "Hello glow_glyph!",
                     screen_position: (30.0, 30.0),
-                    color: [0.0, 0.0, 0.0, 1.0],
-                    scale: Scale { x: 40.0, y: 40.0 },
                     bounds: (size.width as f32, size.height as f32),
+                    text: vec![Text::default()
+                        .with_text("Hello wgpu_glyph!")
+                        .with_color([0.0, 0.0, 0.0, 1.0])
+                        .with_scale(40.0)],
                     ..Section::default()
                 });
 
                 glyph_brush.queue(Section {
-                    text: "Hello glow_glyph!",
                     screen_position: (30.0, 90.0),
-                    color: [1.0, 1.0, 1.0, 1.0],
-                    scale: Scale { x: 40.0, y: 40.0 },
                     bounds: (size.width as f32, size.height as f32),
+                    text: vec![Text::default()
+                        .with_text("Hello wgpu_glyph!")
+                        .with_color([1.0, 1.0, 1.0, 1.0])
+                        .with_scale(40.0)],
                     ..Section::default()
                 });
 
