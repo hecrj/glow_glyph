@@ -14,9 +14,6 @@ impl Cache {
 
             gl.bind_texture(glow::TEXTURE_2D, Some(handle));
 
-            #[cfg(debug_assertions)]
-            gl.object_label(glow::TEXTURE, handle, Some("Glyph cache"));
-
             gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_WRAP_S,
