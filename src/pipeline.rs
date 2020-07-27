@@ -54,10 +54,10 @@ impl Pipeline {
         unsafe {
             gl.use_program(Some(program));
 
-            gl.uniform_1_i32(Some(sampler), 0);
+            gl.uniform_1_i32(Some(&sampler), 0);
 
             gl.uniform_matrix_4_f32_slice(
-                Some(transform),
+                Some(&transform),
                 false,
                 &IDENTITY_MATRIX,
             );
@@ -90,7 +90,7 @@ impl Pipeline {
         if self.current_transform != transform {
             unsafe {
                 gl.uniform_matrix_4_f32_slice(
-                    Some(self.transform),
+                    Some(&self.transform),
                     false,
                     &transform,
                 );

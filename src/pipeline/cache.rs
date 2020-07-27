@@ -66,7 +66,7 @@ impl Cache {
 
         gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
 
-        gl.tex_sub_image_2d_u8_slice(
+        gl.tex_sub_image_2d(
             glow::TEXTURE_2D,
             0,
             i32::from(offset_x),
@@ -75,7 +75,7 @@ impl Cache {
             i32::from(height),
             glow::RED,
             glow::UNSIGNED_BYTE,
-            Some(data),
+            glow::PixelUnpackData::Slice(data),
         );
 
         gl.bind_texture(glow::TEXTURE_2D, None);
