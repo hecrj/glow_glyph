@@ -22,9 +22,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut size = context.window().inner_size();
 
     // Initialize OpenGL
-    let gl = glow::Context::from_loader_function(|s| {
-        context.get_proc_address(s) as *const _
-    });
+    let gl = unsafe {
+        glow::Context::from_loader_function(|s| {
+            context.get_proc_address(s) as *const _
+        })
+    };
 
     // Prepare glyph_brush
     let inconsolata = ab_glyph::FontArc::try_from_slice(include_bytes!(
@@ -77,7 +79,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     screen_position: (30.0, 30.0),
                     bounds: (size.width as f32, size.height as f32),
                     text: vec![Text::default()
-                        .with_text("Hello wgpu_glyph!")
+                        .with_text("Hello glow_glyph!")
                         .with_color([0.0, 0.0, 0.0, 1.0])
                         .with_scale(40.0)],
                     ..Section::default()
@@ -87,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     screen_position: (30.0, 90.0),
                     bounds: (size.width as f32, size.height as f32),
                     text: vec![Text::default()
-                        .with_text("Hello wgpu_glyph!")
+                        .with_text("Hello glow_glyph!")
                         .with_color([1.0, 1.0, 1.0, 1.0])
                         .with_scale(40.0)],
                     ..Section::default()
