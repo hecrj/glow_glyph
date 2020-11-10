@@ -17,5 +17,5 @@ log = "0.4"
 bytemuck = "1.4"
 
 [dev-dependencies]
-glutin = "0.24"
+glutin = "0.25"
 env_logger = "0.7"
