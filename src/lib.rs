@@ -9,7 +9,7 @@ mod region;
 
 pub use region::Region;
 
-use pipeline::{Instance, Pipeline};
+use pipeline::{Pipeline, Vertex};
 
 pub use builder::GlyphBrushBuilder;
 pub use glyph_brush::ab_glyph;
@@ -33,7 +33,7 @@ use log::{log_enabled, warn};
 /// Build using a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html).
 pub struct GlyphBrush<F = FontArc, H = DefaultSectionHasher> {
     pipeline: Pipeline,
-    glyph_brush: glyph_brush::GlyphBrush<Instance, Extra, F, H>,
+    glyph_brush: glyph_brush::GlyphBrush<[Vertex; 4], Extra, F, H>,
 }
 
 impl<F: Font, H: BuildHasher> GlyphBrush<F, H> {
@@ -209,7 +209,7 @@ impl<F: Font + Sync, H: BuildHasher> GlyphBrush<F, H> {
 
                     pipeline.update_cache(context, offset, size, tex_data);
                 },
-                Instance::from_vertex,
+                |glyph| Vertex::from_vertex(&glyph),
             );
 
             match brush_action {

@@ -9,11 +9,12 @@ use glow::HasContext;
 pub struct Pipeline {
     program: <glow::Context as HasContext>::Program,
     vertex_array: <glow::Context as HasContext>::VertexArray,
-    instances: <glow::Context as HasContext>::Buffer,
+    vertices: <glow::Context as HasContext>::Buffer,
+    indices: <glow::Context as HasContext>::Buffer,
     transform: <glow::Context as HasContext>::UniformLocation,
     cache: Cache,
-    current_instances: usize,
-    supported_instances: usize,
+    current_vertices: usize,
+    supported_vertices: usize,
     current_transform: [f32; 16],
 }
 
@@ -38,8 +39,10 @@ impl Pipeline {
             )
         };
 
-        let (vertex_array, instances) =
-            unsafe { create_instance_buffer(gl, Instance::INITIAL_AMOUNT) };
+        let vertex_array =
+            unsafe { gl.create_vertex_array().expect("Create vertex array") };
+        let (vertices, indices) =
+            unsafe { create_buffers(gl, vertex_array, Vertex::INITIAL_AMOUNT) };
 
         let transform = unsafe {
             gl.get_uniform_location(program, "transform")
@@ -69,10 +72,11 @@ impl Pipeline {
             program,
             cache,
             vertex_array,
-            instances,
+            vertices,
+            indices,
             transform,
-            current_instances: 0,
-            supported_instances: Instance::INITIAL_AMOUNT,
+            current_vertices: 0,
+            supported_vertices: Vertex::INITIAL_AMOUNT,
             current_transform: IDENTITY_MATRIX,
         }
     }
@@ -115,11 +119,14 @@ impl Pipeline {
 
             gl.bind_vertex_array(Some(self.vertex_array));
 
-            gl.draw_arrays_instanced(
-                glow::TRIANGLE_STRIP,
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertices));
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.indices));
+
+            gl.draw_elements(
+                glow::TRIANGLES,
+                (self.current_vertices as i32 * 3) / 2,
+                glow::UNSIGNED_INT,
                 0,
-                4,
-                self.current_instances as i32,
             );
 
             gl.bind_vertex_array(None);
@@ -154,37 +161,68 @@ impl Pipeline {
         }
     }
 
-    pub fn upload(&mut self, gl: &glow::Context, instances: &[Instance]) {
-        if instances.is_empty() {
-            self.current_instances = 0;
+    pub fn upload(&mut self, gl: &glow::Context, vertices: &[[Vertex; 4]]) {
+        // NOTE: Since we use `bytemuck::cast_slice` to convert our
+        // vector of vertices to a byte slice, we don't need to flatten
+        // the upload data (they are going to be bytes in the end anyway).
+        //
+        // But because of this, `vertices.len()` doesn't correspond to
+        // the number of vertices anymore, so we use this variable for that.
+        let vertex_count = vertices.len() * 4;
+
+        if vertices.is_empty() {
+            self.current_vertices = 0;
             return;
         }
 
-        if instances.len() > self.supported_instances {
+        if vertex_count > self.supported_vertices {
             unsafe {
-                gl.delete_buffer(self.instances);
+                gl.delete_buffer(self.vertices);
                 gl.delete_vertex_array(self.vertex_array);
             }
 
-            let (new_vertex_array, new_instances) =
-                unsafe { create_instance_buffer(gl, instances.len()) };
+            let (vertex_buffer, index_buffer) =
+                unsafe { create_buffers(gl, self.vertex_array, vertex_count) };
 
-            self.vertex_array = new_vertex_array;
-            self.instances = new_instances;
-            self.supported_instances = instances.len();
+            self.vertices = vertex_buffer;
+            self.indices = index_buffer;
+            self.supported_vertices = vertex_count;
         }
 
         unsafe {
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.instances));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vertices));
             gl.buffer_sub_data_u8_slice(
                 glow::ARRAY_BUFFER,
                 0,
-                bytemuck::cast_slice(instances),
+                bytemuck::cast_slice(vertices),
             );
+
+            let indices = (0..vertex_count as i32).fold(
+                Vec::with_capacity(vertex_count),
+                |mut indices, i| {
+                    indices.extend_from_slice(&[
+                        0 + i * 4,
+                        1 + i * 4,
+                        2 + i * 4,
+                        2 + i * 4,
+                        1 + i * 4,
+                        3 + i * 4,
+                    ]);
+                    indices
+                },
+            );
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.indices));
+            gl.buffer_sub_data_u8_slice(
+                glow::ELEMENT_ARRAY_BUFFER,
+                0,
+                bytemuck::cast_slice(&indices),
+            );
+
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
         }
 
-        self.current_instances = instances.len();
+        self.current_vertices = vertex_count;
     }
 }
 
@@ -199,19 +237,22 @@ const IDENTITY_MATRIX: [f32; 16] = [
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
-pub struct Instance {
-    left_top: [f32; 3],
-    right_bottom: [f32; 2],
-    tex_left_top: [f32; 2],
-    tex_right_bottom: [f32; 2],
+pub struct Vertex {
+    pos: [f32; 2],
+    uv: [f32; 2],
+    extra: f32,
     color: [f32; 4],
 }
 
-unsafe impl bytemuck::Zeroable for Instance {}
-unsafe impl bytemuck::Pod for Instance {}
+impl Vertex {
+    pub const SIZE: usize = std::mem::size_of::<Self>();
+}
 
-impl Instance {
-    const INITIAL_AMOUNT: usize = 50_000;
+unsafe impl bytemuck::Zeroable for Vertex {}
+unsafe impl bytemuck::Pod for Vertex {}
+
+impl Vertex {
+    const INITIAL_AMOUNT: usize = 50_000 * 4; // 200_000 vertices (or, 50_000 glyphs)
 
     pub fn from_vertex(
         glyph_brush::GlyphVertex {
@@ -219,8 +260,8 @@ impl Instance {
             pixel_coords,
             bounds,
             extra,
-        }: glyph_brush::GlyphVertex,
-    ) -> Instance {
+        }: &glyph_brush::GlyphVertex,
+    ) -> [Vertex; 4] {
         let gl_bounds = bounds;
 
         let mut gl_rect = Rect {
@@ -257,13 +298,37 @@ impl Instance {
                 - tex_coords.height() * gl_rect.height() / old_height;
         }
 
-        Instance {
-            left_top: [gl_rect.min.x, gl_rect.max.y, extra.z],
-            right_bottom: [gl_rect.max.x, gl_rect.min.y],
-            tex_left_top: [tex_coords.min.x, tex_coords.max.y],
-            tex_right_bottom: [tex_coords.max.x, tex_coords.min.y],
-            color: extra.color,
-        }
+        // NOTE: This makes so that one `glyph` corresponds
+        // to four vertices, which then makes one quad.
+        // This is used for maximum compatibility, where
+        // some hardware don't support instancing.
+        // e.g. OpenGL 2.1, OpenGL ES 2.0, etc.
+        [
+            Vertex {
+                pos: [gl_rect.min.x, gl_rect.max.y],
+                uv: [tex_coords.min.x, tex_coords.max.y],
+                extra: extra.z,
+                color: extra.color,
+            },
+            Vertex {
+                pos: [gl_rect.max.x, gl_rect.max.y],
+                uv: [tex_coords.max.x, tex_coords.max.y],
+                extra: extra.z,
+                color: extra.color,
+            },
+            Vertex {
+                pos: [gl_rect.min.x, gl_rect.min.y],
+                uv: [tex_coords.min.x, tex_coords.min.y],
+                extra: extra.z,
+                color: extra.color,
+            },
+            Vertex {
+                pos: [gl_rect.max.x, gl_rect.min.y],
+                uv: [tex_coords.max.x, tex_coords.min.y],
+                extra: extra.z,
+                color: extra.color,
+            },
+        ]
     }
 }
 
@@ -284,7 +349,7 @@ unsafe fn create_program(
         gl.compile_shader(shader);
 
         if !gl.get_shader_compile_status(shader) {
-            panic!(gl.get_shader_info_log(shader));
+            panic!("{}", gl.get_shader_info_log(shader));
         }
 
         gl.attach_shader(program, shader);
@@ -292,9 +357,14 @@ unsafe fn create_program(
         shaders.push(shader);
     }
 
+    gl.bind_attrib_location(program, 0, "pos");
+    gl.bind_attrib_location(program, 1, "uv");
+    gl.bind_attrib_location(program, 2, "extra");
+    gl.bind_attrib_location(program, 3, "color");
+
     gl.link_program(program);
     if !gl.get_program_link_status(program) {
-        panic!(gl.get_program_info_log(program));
+        panic!("{}", gl.get_program_info_log(program));
     }
 
     for shader in shaders {
@@ -305,62 +375,85 @@ unsafe fn create_program(
     program
 }
 
-unsafe fn create_instance_buffer(
+unsafe fn create_buffers(
     gl: &glow::Context,
-    size: usize,
+    vertex_array: <glow::Context as HasContext>::VertexArray,
+    buffer_size: usize,
 ) -> (
-    <glow::Context as HasContext>::VertexArray,
+    <glow::Context as HasContext>::Buffer,
     <glow::Context as HasContext>::Buffer,
 ) {
-    let vertex_array = gl.create_vertex_array().expect("Create vertex array");
-    let buffer = gl.create_buffer().expect("Create instance buffer");
-
     gl.bind_vertex_array(Some(vertex_array));
-    gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
+
+    let vertex_buffer = gl.create_buffer().expect("Create vertex buffer");
+    let index_buffer = gl.create_buffer().expect("Create index buffer");
+
+    gl.bind_buffer(glow::ARRAY_BUFFER, Some(vertex_buffer));
     gl.buffer_data_size(
         glow::ARRAY_BUFFER,
-        (size * std::mem::size_of::<Instance>()) as i32,
+        (buffer_size * Vertex::SIZE) as i32,
         glow::DYNAMIC_DRAW,
     );
 
-    let stride = std::mem::size_of::<Instance>() as i32;
+    // For every 4 vertices, we have 6 indices
+    // The indices are bytes, which have size 4
+    // Making the buffer size: `buffer_size * (6/4) * 4` bytes
+    // Or simply: `buffer_size * 6` bytes
+    let index_buffer_size = buffer_size as i32 * 6;
+    gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(index_buffer));
+    gl.buffer_data_size(
+        glow::ELEMENT_ARRAY_BUFFER,
+        index_buffer_size,
+        glow::DYNAMIC_DRAW,
+    );
 
+    // vec2 pos;
     gl.enable_vertex_attrib_array(0);
-    gl.vertex_attrib_pointer_f32(0, 3, glow::FLOAT, false, stride, 0);
-    gl.vertex_attrib_divisor(0, 1);
-
-    gl.enable_vertex_attrib_array(1);
-    gl.vertex_attrib_pointer_f32(1, 2, glow::FLOAT, false, stride, 4 * 3);
-    gl.vertex_attrib_divisor(1, 1);
-
-    gl.enable_vertex_attrib_array(2);
-    gl.vertex_attrib_pointer_f32(2, 2, glow::FLOAT, false, stride, 4 * (3 + 2));
-    gl.vertex_attrib_divisor(2, 1);
-
-    gl.enable_vertex_attrib_array(3);
     gl.vertex_attrib_pointer_f32(
-        3,
+        0,
         2,
         glow::FLOAT,
         false,
-        stride,
-        4 * (3 + 2 + 2),
+        Vertex::SIZE as i32,
+        0,
     );
-    gl.vertex_attrib_divisor(3, 1);
 
-    gl.enable_vertex_attrib_array(4);
+    // vec2 uv;
+    gl.enable_vertex_attrib_array(1);
     gl.vertex_attrib_pointer_f32(
-        4,
+        1,
+        2,
+        glow::FLOAT,
+        false,
+        Vertex::SIZE as i32,
+        4 * 2,
+    );
+
+    // float extra;
+    gl.enable_vertex_attrib_array(2);
+    gl.vertex_attrib_pointer_f32(
+        2,
+        1,
+        glow::FLOAT,
+        false,
+        Vertex::SIZE as i32,
+        4 * (2 + 2),
+    );
+
+    // vec4 color;
+    gl.enable_vertex_attrib_array(3);
+    gl.vertex_attrib_pointer_f32(
+        3,
         4,
         glow::FLOAT,
         false,
-        stride,
-        4 * (3 + 2 + 2 + 2),
+        Vertex::SIZE as i32,
+        4 * (2 + 2 + 1),
     );
-    gl.vertex_attrib_divisor(4, 1);
 
-    gl.bind_vertex_array(None);
+    gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
     gl.bind_buffer(glow::ARRAY_BUFFER, None);
+    gl.bind_vertex_array(None);
 
-    (vertex_array, buffer)
+    (vertex_buffer, index_buffer)
 }
