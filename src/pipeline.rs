@@ -16,6 +16,7 @@ pub struct Pipeline {
     current_vertices: usize,
     supported_vertices: usize,
     current_transform: [f32; 16],
+    max_texture_size: u32,
 }
 
 impl Pipeline {
@@ -53,6 +54,12 @@ impl Pipeline {
             gl.get_uniform_location(program, "font_sampler")
                 .expect("Get sampler location")
         };
+        let max_texture_size = unsafe {
+            match gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) {
+                i32::MIN..=0 => 2048,
+                size => size as u32,
+            }
+        };
 
         unsafe {
             gl.use_program(Some(program));
@@ -78,6 +85,7 @@ impl Pipeline {
             current_vertices: 0,
             supported_vertices: Vertex::INITIAL_AMOUNT,
             current_transform: IDENTITY_MATRIX,
+            max_texture_size,
         }
     }
 
@@ -223,6 +231,10 @@ impl Pipeline {
         }
 
         self.current_vertices = vertex_count;
+    }
+
+    pub fn get_max_texture_size(&self) -> u32 {
+        self.max_texture_size
     }
 }
 

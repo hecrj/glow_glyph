@@ -215,18 +215,17 @@ impl<F: Font + Sync, H: BuildHasher> GlyphBrush<F, H> {
             match brush_action {
                 Ok(_) => break,
                 Err(BrushError::TextureTooSmall { suggested }) => {
-                    // TODO: Obtain max texture dimensions
-                    let max_image_dimension = 2048;
+                    let max_image_size = pipeline.get_max_texture_size();
 
                     let (new_width, new_height) = if (suggested.0
-                        > max_image_dimension
-                        || suggested.1 > max_image_dimension)
+                        > max_image_size
+                        || suggested.1 > max_image_size)
                         && (self.glyph_brush.texture_dimensions().0
-                            < max_image_dimension
+                            < max_image_size
                             || self.glyph_brush.texture_dimensions().1
-                                < max_image_dimension)
+                                < max_image_size)
                     {
-                        (max_image_dimension, max_image_dimension)
+                        (max_image_size, max_image_size)
                     } else {
                         suggested
                     };
