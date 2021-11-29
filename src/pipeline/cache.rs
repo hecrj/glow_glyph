@@ -2,10 +2,20 @@ use glow::HasContext;
 
 pub struct Cache {
     pub(crate) texture: <glow::Context as HasContext>::Texture,
+    format: u32,
 }
 
 impl Cache {
     pub unsafe fn new(gl: &glow::Context, width: u32, height: u32) -> Cache {
+        // This is needed because on ES 2.0 `glTexImage2D` doesn't accept GL_RED or GL_R8 (without extensions)
+        let version = gl.version();
+        let (internal_format, format) =
+            if version.is_embedded || version.major == 2 {
+                (glow::ALPHA as i32, glow::ALPHA)
+            } else {
+                (glow::R8 as i32, glow::RED)
+            };
+
         gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
 
         let texture = {
@@ -35,14 +45,28 @@ impl Cache {
                 glow::LINEAR as i32,
             );
 
+            // Swizzle red channel to alpha channel to make it compatible with ES 2.0
+            if !(version.is_embedded || version.major == 2) {
+                gl.tex_parameter_i32_slice(
+                    glow::TEXTURE_2D,
+                    glow::TEXTURE_SWIZZLE_RGBA,
+                    &[
+                        glow::ZERO as i32,
+                        glow::ZERO as i32,
+                        glow::ZERO as i32,
+                        glow::RED as i32,
+                    ],
+                );
+            }
+
             gl.tex_image_2d(
                 glow::TEXTURE_2D,
                 0,
-                glow::R8 as i32,
+                internal_format,
                 width as i32,
                 height as i32,
                 0,
-                glow::RED,
+                format,
                 glow::UNSIGNED_BYTE,
                 None,
             );
@@ -51,7 +75,7 @@ impl Cache {
             handle
         };
 
-        Cache { texture }
+        Cache { texture, format }
     }
 
     pub unsafe fn update(
@@ -73,7 +97,7 @@ impl Cache {
             i32::from(offset_y),
             i32::from(width),
             i32::from(height),
-            glow::RED,
+            self.format,
             glow::UNSIGNED_BYTE,
             glow::PixelUnpackData::Slice(data),
         );
