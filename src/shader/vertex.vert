@@ -1,14 +1,12 @@
-#version 100
-
 uniform mat4 transform;
 
-attribute vec2 pos;
-attribute vec2 uv;
-attribute float extra;
-attribute vec4 color;
+in vec2 pos;
+in vec2 uv;
+in float extra;
+in vec4 color;
 
-varying vec2 f_uv;
-varying vec4 f_color;
+out vec2 f_uv;
+out vec4 f_color;
 
 void main() {
     f_uv = uv;

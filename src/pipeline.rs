@@ -30,13 +30,8 @@ impl Pipeline {
         let program = unsafe {
             create_program(
                 gl,
-                &[
-                    (glow::VERTEX_SHADER, include_str!("./shader/vertex.vert")),
-                    (
-                        glow::FRAGMENT_SHADER,
-                        include_str!("./shader/fragment.frag"),
-                    ),
-                ],
+                include_str!("./shader/vertex.vert"),
+                include_str!("./shader/fragment.frag"),
             )
         };
 
@@ -346,8 +341,77 @@ impl Vertex {
 
 unsafe fn create_program(
     gl: &glow::Context,
-    shader_sources: &[(u32, &str)],
+    vertex_source: &str,
+    fragment_source: &str,
 ) -> <glow::Context as HasContext>::Program {
+    let version = gl.get_version();
+
+    // This may look crazy, but in essence it defines:
+    // - Version directive
+    // - Fragment shader output (if needed)
+    // - Changes legacy `attribute` and `varying` to `in` and `out`
+    //
+    // By doing so, we make sure to define the shader only once,
+    // and make it work across different versions.
+    let (vertex_version, fragment_version) =
+        match (version.major, version.minor, version.is_embedded) {
+            // OpenGL 3.0+
+            (3, 0 | 1 | 2, false) => (
+                format!("#version 1{}0", version.minor + 3),
+                format!(
+                    "#version 1{}0\n#define HIGHER_THAN_300 1",
+                    version.minor + 3
+                ),
+            ),
+            // OpenGL 3.3+
+            (3 | 4, _, false) => (
+                format!("#version {}{}0", version.major, version.minor),
+                format!(
+                    "#version {}{}0\n#define HIGHER_THAN_300 1",
+                    version.major, version.minor
+                ),
+            ),
+            // OpenGL ES 3.0+
+            (3, _, true) => (
+                format!("#version 3{}0 es", version.minor),
+                format!(
+                    "#version 3{}0 es\n#define HIGHER_THAN_300 1",
+                    version.minor
+                ),
+            ),
+            // OpenGL ES 2.0+
+            (2, _, true) => (
+                String::from(
+                    "#version 100\n#define in attribute\n#define out varying",
+                ),
+                String::from("#version 100\n#define in varying"),
+            ),
+            // OpenGL 2.1
+            (2, _, false) => (
+                String::from(
+                    "#version 120\n#define in attribute\n#define out varying",
+                ),
+                String::from("#version 120\n#define in varying"),
+            ),
+            // OpenGL 1.1+
+            _ => panic!("Incompatible context version: {:?}", version),
+        };
+    log::info!(
+        "Shader directive: {}",
+        vertex_version.lines().next().unwrap()
+    );
+
+    let shader_sources = [
+        (
+            glow::VERTEX_SHADER,
+            &format!("{}\n{}", vertex_version, vertex_source),
+        ),
+        (
+            glow::FRAGMENT_SHADER,
+            &format!("{}\n{}", fragment_version, fragment_source),
+        ),
+    ];
+
     let program = gl.create_program().expect("Cannot create program");
 
     let mut shaders = Vec::with_capacity(shader_sources.len());
