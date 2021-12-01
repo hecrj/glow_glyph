@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Separate `Pipeline` into `core` and `compatibility`
+- Modify shaders based on the acquired context
+- Add `Pipeline::get_max_texture_size`
+
 ## [0.4.0] - 2020-11-10
 ### Changed
 - `glow` updated to `0.6`. [#3]
