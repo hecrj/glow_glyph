@@ -7,9 +7,8 @@ mod builder;
 mod pipeline;
 mod region;
 
+use pipeline::{compatibility, core};
 pub use region::Region;
-
-use pipeline::{Instance, Pipeline};
 
 pub use builder::GlyphBrushBuilder;
 pub use glyph_brush::ab_glyph;
@@ -21,7 +20,7 @@ pub use glyph_brush::{
 
 use ab_glyph::{Font, FontArc, Rect};
 
-use core::hash::BuildHasher;
+use ::core::hash::BuildHasher;
 use std::borrow::Cow;
 
 use glyph_brush::{BrushAction, BrushError, DefaultSectionHasher};
@@ -31,9 +30,16 @@ use log::{log_enabled, warn};
 /// glyph draw caching & efficient GPU texture cache updating and re-sizing on demand.
 ///
 /// Build using a [`GlyphBrushBuilder`](struct.GlyphBrushBuilder.html).
-pub struct GlyphBrush<F = FontArc, H = DefaultSectionHasher> {
-    pipeline: Pipeline,
-    glyph_brush: glyph_brush::GlyphBrush<Instance, Extra, F, H>,
+pub enum GlyphBrush<F = FontArc, H = DefaultSectionHasher> {
+    Core {
+        pipeline: core::Pipeline,
+        glyph_brush: glyph_brush::GlyphBrush<core::Instance, Extra, F, H>,
+    },
+    Compatibility {
+        pipeline: compatibility::Pipeline,
+        glyph_brush:
+            glyph_brush::GlyphBrush<[compatibility::Vertex; 4], Extra, F, H>,
+    },
 }
 
 impl<F: Font, H: BuildHasher> GlyphBrush<F, H> {
@@ -47,7 +53,12 @@ impl<F: Font, H: BuildHasher> GlyphBrush<F, H> {
     where
         S: Into<Cow<'a, Section<'a>>>,
     {
-        self.glyph_brush.queue(section)
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.queue(section)
+            }
+            GlyphBrush::Core { glyph_brush, .. } => glyph_brush.queue(section),
+        }
     }
 
     /// Queues a section/layout to be drawn by the next call of
@@ -68,7 +79,14 @@ impl<F: Font, H: BuildHasher> GlyphBrush<F, H> {
         G: GlyphPositioner,
         S: Into<Cow<'a, Section<'a>>>,
     {
-        self.glyph_brush.queue_custom_layout(section, custom_layout)
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.queue_custom_layout(section, custom_layout)
+            }
+            GlyphBrush::Core { glyph_brush, .. } => {
+                glyph_brush.queue_custom_layout(section, custom_layout)
+            }
+        }
     }
 
     /// Queues pre-positioned glyphs to be processed by the next call of
@@ -81,7 +99,14 @@ impl<F: Font, H: BuildHasher> GlyphBrush<F, H> {
         extra: Vec<Extra>,
         bounds: Rect,
     ) {
-        self.glyph_brush.queue_pre_positioned(glyphs, extra, bounds)
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.queue_pre_positioned(glyphs, extra, bounds)
+            }
+            GlyphBrush::Core { glyph_brush, .. } => {
+                glyph_brush.queue_pre_positioned(glyphs, extra, bounds)
+            }
+        }
     }
 
     /// Retains the section in the cache as if it had been used in the last
@@ -98,8 +123,14 @@ impl<F: Font, H: BuildHasher> GlyphBrush<F, H> {
         S: Into<Cow<'a, Section<'a>>>,
         G: GlyphPositioner,
     {
-        self.glyph_brush
-            .keep_cached_custom_layout(section, custom_layout)
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.keep_cached_custom_layout(section, custom_layout)
+            }
+            GlyphBrush::Core { glyph_brush, .. } => {
+                glyph_brush.keep_cached_custom_layout(section, custom_layout)
+            }
+        }
     }
 
     /// Retains the section in the cache as if it had been used in the last
@@ -112,7 +143,14 @@ impl<F: Font, H: BuildHasher> GlyphBrush<F, H> {
     where
         S: Into<Cow<'a, Section<'a>>>,
     {
-        self.glyph_brush.keep_cached(section)
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.keep_cached(section)
+            }
+            GlyphBrush::Core { glyph_brush, .. } => {
+                glyph_brush.keep_cached(section)
+            }
+        }
     }
 
     /// Returns the available fonts.
@@ -120,14 +158,24 @@ impl<F: Font, H: BuildHasher> GlyphBrush<F, H> {
     /// The `FontId` corresponds to the index of the font data.
     #[inline]
     pub fn fonts(&self) -> &[F] {
-        self.glyph_brush.fonts()
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.fonts()
+            }
+            GlyphBrush::Core { glyph_brush, .. } => glyph_brush.fonts(),
+        }
     }
 
     /// Adds an additional font to the one(s) initially added on build.
     ///
     /// Returns a new [`FontId`](struct.FontId.html) to reference this font.
     pub fn add_font(&mut self, font: F) -> FontId {
-        self.glyph_brush.add_font(font)
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.add_font(font)
+            }
+            GlyphBrush::Core { glyph_brush, .. } => glyph_brush.add_font(font),
+        }
     }
 }
 
@@ -169,7 +217,15 @@ impl<F: Font + Sync, H: BuildHasher> GlyphBrush<F, H> {
         transform: [f32; 16],
     ) -> Result<(), String> {
         self.process_queued(context);
-        self.pipeline.draw(context, transform, None);
+
+        match self {
+            GlyphBrush::Compatibility { pipeline, .. } => {
+                pipeline.draw(context, transform, None);
+            }
+            GlyphBrush::Core { pipeline, .. } => {
+                pipeline.draw(context, transform, None);
+            }
+        }
 
         Ok(())
     }
@@ -191,69 +247,150 @@ impl<F: Font + Sync, H: BuildHasher> GlyphBrush<F, H> {
         region: Region,
     ) -> Result<(), String> {
         self.process_queued(context);
-        self.pipeline.draw(context, transform, Some(region));
+
+        match self {
+            GlyphBrush::Compatibility { pipeline, .. } => {
+                pipeline.draw(context, transform, Some(region));
+            }
+            GlyphBrush::Core { pipeline, .. } => {
+                pipeline.draw(context, transform, Some(region));
+            }
+        }
 
         Ok(())
     }
 
     fn process_queued(&mut self, context: &glow::Context) {
-        let pipeline = &mut self.pipeline;
+        match self {
+            GlyphBrush::Compatibility {
+                glyph_brush,
+                pipeline,
+            } => {
+                let mut brush_action;
 
-        let mut brush_action;
+                loop {
+                    brush_action = glyph_brush.process_queued(
+                        |rect, tex_data| {
+                            let offset =
+                                [rect.min[0] as u16, rect.min[1] as u16];
+                            let size =
+                                [rect.width() as u16, rect.height() as u16];
 
-        loop {
-            brush_action = self.glyph_brush.process_queued(
-                |rect, tex_data| {
-                    let offset = [rect.min[0] as u16, rect.min[1] as u16];
-                    let size = [rect.width() as u16, rect.height() as u16];
+                            pipeline
+                                .update_cache(context, offset, size, tex_data);
+                        },
+                        |glyph| compatibility::Vertex::from_vertex(&glyph),
+                    );
 
-                    pipeline.update_cache(context, offset, size, tex_data);
-                },
-                Instance::from_vertex,
-            );
+                    match brush_action {
+                        Ok(_) => break,
+                        Err(BrushError::TextureTooSmall { suggested }) => {
+                            let max_image_size =
+                                pipeline.get_max_texture_size();
 
-            match brush_action {
-                Ok(_) => break,
-                Err(BrushError::TextureTooSmall { suggested }) => {
-                    // TODO: Obtain max texture dimensions
-                    let max_image_dimension = 2048;
+                            let (new_width, new_height) = if (suggested.0
+                                > max_image_size
+                                || suggested.1 > max_image_size)
+                                && (glyph_brush.texture_dimensions().0
+                                    < max_image_size
+                                    || glyph_brush.texture_dimensions().1
+                                        < max_image_size)
+                            {
+                                (max_image_size, max_image_size)
+                            } else {
+                                suggested
+                            };
 
-                    let (new_width, new_height) = if (suggested.0
-                        > max_image_dimension
-                        || suggested.1 > max_image_dimension)
-                        && (self.glyph_brush.texture_dimensions().0
-                            < max_image_dimension
-                            || self.glyph_brush.texture_dimensions().1
-                                < max_image_dimension)
-                    {
-                        (max_image_dimension, max_image_dimension)
-                    } else {
-                        suggested
-                    };
-
-                    if log_enabled!(log::Level::Warn) {
-                        warn!(
+                            if log_enabled!(log::Level::Warn) {
+                                warn!(
                             "Increasing glyph texture size {old:?} -> {new:?}. \
                              Consider building with `.initial_cache_size({new:?})` to avoid \
                              resizing",
-                            old = self.glyph_brush.texture_dimensions(),
+                            old = glyph_brush.texture_dimensions(),
                             new = (new_width, new_height),
                         );
-                    }
+                            }
 
-                    pipeline
-                        .increase_cache_size(context, new_width, new_height);
-                    self.glyph_brush.resize_texture(new_width, new_height);
+                            pipeline.increase_cache_size(
+                                context, new_width, new_height,
+                            );
+                            glyph_brush.resize_texture(new_width, new_height);
+                        }
+                    }
                 }
+
+                match brush_action.unwrap() {
+                    BrushAction::Draw(verts) => {
+                        pipeline.upload(context, &verts);
+                    }
+                    BrushAction::ReDraw => {}
+                };
+            }
+            GlyphBrush::Core {
+                glyph_brush,
+                pipeline,
+            } => {
+                let mut brush_action;
+
+                loop {
+                    brush_action = glyph_brush.process_queued(
+                        |rect, tex_data| {
+                            let offset =
+                                [rect.min[0] as u16, rect.min[1] as u16];
+                            let size =
+                                [rect.width() as u16, rect.height() as u16];
+
+                            pipeline
+                                .update_cache(context, offset, size, tex_data);
+                        },
+                        core::Instance::from_vertex,
+                    );
+
+                    match brush_action {
+                        Ok(_) => break,
+                        Err(BrushError::TextureTooSmall { suggested }) => {
+                            let max_image_size =
+                                pipeline.get_max_texture_size();
+
+                            let (new_width, new_height) = if (suggested.0
+                                > max_image_size
+                                || suggested.1 > max_image_size)
+                                && (glyph_brush.texture_dimensions().0
+                                    < max_image_size
+                                    || glyph_brush.texture_dimensions().1
+                                        < max_image_size)
+                            {
+                                (max_image_size, max_image_size)
+                            } else {
+                                suggested
+                            };
+
+                            if log_enabled!(log::Level::Warn) {
+                                warn!(
+                            "Increasing glyph texture size {old:?} -> {new:?}. \
+                             Consider building with `.initial_cache_size({new:?})` to avoid \
+                             resizing",
+                            old = glyph_brush.texture_dimensions(),
+                            new = (new_width, new_height),
+                        );
+                            }
+
+                            pipeline.increase_cache_size(
+                                context, new_width, new_height,
+                            );
+                            glyph_brush.resize_texture(new_width, new_height);
+                        }
+                    }
+                }
+
+                match brush_action.unwrap() {
+                    BrushAction::Draw(verts) => {
+                        pipeline.upload(context, &verts);
+                    }
+                    BrushAction::ReDraw => {}
+                };
             }
         }
-
-        match brush_action.unwrap() {
-            BrushAction::Draw(verts) => {
-                self.pipeline.upload(context, &verts);
-            }
-            BrushAction::ReDraw => {}
-        };
     }
 }
 
@@ -262,12 +399,34 @@ impl<F: Font, H: BuildHasher> GlyphBrush<F, H> {
         gl: &glow::Context,
         raw_builder: glyph_brush::GlyphBrushBuilder<F, H>,
     ) -> Self {
-        let glyph_brush = raw_builder.build();
-        let (cache_width, cache_height) = glyph_brush.texture_dimensions();
+        use glow::HasContext;
 
-        GlyphBrush {
-            pipeline: Pipeline::new(gl, cache_width, cache_height),
-            glyph_brush,
+        let version = gl.version();
+
+        if version.major >= 3 {
+            log::info!("Mode: core");
+
+            let glyph_brush = raw_builder.build();
+            let (cache_width, cache_height) = glyph_brush.texture_dimensions();
+
+            GlyphBrush::Core {
+                pipeline: core::Pipeline::new(gl, cache_width, cache_height),
+                glyph_brush,
+            }
+        } else {
+            log::info!("Mode: compatibility");
+
+            let glyph_brush = raw_builder.build();
+            let (cache_width, cache_height) = glyph_brush.texture_dimensions();
+
+            GlyphBrush::Compatibility {
+                pipeline: compatibility::Pipeline::new(
+                    gl,
+                    cache_width,
+                    cache_height,
+                ),
+                glyph_brush,
+            }
         }
     }
 }
@@ -294,8 +453,14 @@ impl<F: Font, H: BuildHasher> GlyphCruncher<F> for GlyphBrush<F, H> {
         L: GlyphPositioner + std::hash::Hash,
         S: Into<Cow<'a, Section<'a>>>,
     {
-        self.glyph_brush
-            .glyphs_custom_layout(section, custom_layout)
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.glyphs_custom_layout(section, custom_layout)
+            }
+            GlyphBrush::Core { glyph_brush, .. } => {
+                glyph_brush.glyphs_custom_layout(section, custom_layout)
+            }
+        }
     }
 
     #[inline]
@@ -308,13 +473,24 @@ impl<F: Font, H: BuildHasher> GlyphCruncher<F> for GlyphBrush<F, H> {
         L: GlyphPositioner + std::hash::Hash,
         S: Into<Cow<'a, Section<'a>>>,
     {
-        self.glyph_brush
-            .glyph_bounds_custom_layout(section, custom_layout)
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.glyph_bounds_custom_layout(section, custom_layout)
+            }
+            GlyphBrush::Core { glyph_brush, .. } => {
+                glyph_brush.glyph_bounds_custom_layout(section, custom_layout)
+            }
+        }
     }
 
     #[inline]
     fn fonts(&self) -> &[F] {
-        self.glyph_brush.fonts()
+        match self {
+            GlyphBrush::Compatibility { glyph_brush, .. } => {
+                glyph_brush.fonts()
+            }
+            GlyphBrush::Core { glyph_brush, .. } => glyph_brush.fonts(),
+        }
     }
 }
 

@@ -11,11 +11,11 @@ documentation = "https://docs.rs/glow_glyph"
 readme = "README.md"
 
 [dependencies]
-glow = "0.6"
+glow = "0.11.1"
 glyph_brush = "0.7"
 log = "0.4"
 bytemuck = "1.4"
 
 [dev-dependencies]
-glutin = "0.25"
+glutin = "0.28"
 env_logger = "0.8"
