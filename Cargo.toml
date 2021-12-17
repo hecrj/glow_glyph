@@ -11,14 +11,10 @@ documentation = "https://docs.rs/glow_glyph"
 readme = "README.md"
 
 [dependencies]
+glow = "0.11.1"
 glyph_brush = "0.7"
 log = "0.4"
 bytemuck = "1.4"
-
-[dependencies.glow]
-version = "0.11"
-git = "https://github.com/derezzedex/glow"
-rev = "e186ae56bd612d6396307ca22ecb9ae4ba06428f"
 
 [dev-dependencies]
 glutin = "0.28"
