@@ -5,10 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Support for older hardware. [#5]
 
-- Separate `Pipeline` into `core` and `compatibility`
-- Modify shaders based on the acquired context
-- Add `Pipeline::get_max_texture_size`
+### Changed
+- `glow` updated to `0.11.1`. [#5]
+
+[#5]: https://github.com/hecrj/glow_glyph/pull/5
 
 ## [0.4.0] - 2020-11-10
 ### Changed
