@@ -355,7 +355,7 @@ unsafe fn create_program(
         match (version.major, version.minor, version.is_embedded) {
             // OpenGL 3.0+
             (3, 0 | 1 | 2, false) => (
-                format!("#version 1{}0\n#extension GL_ARB_explicit_attrib_location : enable", version.minor + 3),
+                format!("#version 1{}0", version.minor + 3),
                 format!(
                     "#version 1{}0\n#define HIGHER_THAN_300 1",
                     version.minor + 3
@@ -387,7 +387,7 @@ unsafe fn create_program(
             // OpenGL 2.1
             (2, _, false) => (
                 String::from(
-                    "#version 120\n#define in attribute\n#define out varying\n#extension GL_ARB_explicit_attrib_location : enable",
+                    "#version 120\n#define in attribute\n#define out varying",
                 ),
                 String::from("#version 120\n#define in varying"),
             ),
