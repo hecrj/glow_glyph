@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2022-05-10
+### Fixed
+- `GL_ARB_explicit_attrib_location` not being explicitly enabled in `core` shaders. [#7]
+
+[#7]: https://github.com/hecrj/glow_glyph/pull/7
+
 ## [0.5.0] - 2021-12-17
 ### Added
 - Support for older hardware. [#5]
@@ -45,7 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First release! :tada:
 
 
-[Unreleased]: https://github.com/hecrj/glow_glyph/compare/0.5.0...HEAD
+[Unreleased]: https://github.com/hecrj/glow_glyph/compare/0.5.1...HEAD
+[0.5.1]: https://github.com/hecrj/glow_glyph/compare/0.5.0...0.5.1
 [0.5.0]: https://github.com/hecrj/glow_glyph/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/hecrj/glow_glyph/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/hecrj/glow_glyph/compare/0.2.1...0.3.0
