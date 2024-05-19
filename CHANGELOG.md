@@ -6,9 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2024-05-19
+### Changed
+- `glow` updated to `0.13`.
+
 ## [0.6.0] - 2024-05-19
 ### Changed
-- `glow` updated to `0.12.0`. [#8]
+- `glow` updated to `0.12`. [#8]
 
 [#8]: https://github.com/hecrj/glow_glyph/pull/8
 
@@ -57,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First release! :tada:
 
 
-[Unreleased]: https://github.com/hecrj/glow_glyph/compare/0.6.0...HEAD
+[Unreleased]: https://github.com/hecrj/glow_glyph/compare/0.7.0...HEAD
+[0.7.0]: https://github.com/hecrj/glow_glyph/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/hecrj/glow_glyph/compare/0.5.1...0.6.0
 [0.5.1]: https://github.com/hecrj/glow_glyph/compare/0.5.0...0.5.1
 [0.5.0]: https://github.com/hecrj/glow_glyph/compare/0.4.0...0.5.0
